@@ -31,18 +31,16 @@ class Dlink(object):
                  **kwargs):
         """
         Конструктор класса.
-        В нем инициализируется объект для
-        работы с оборудованием по snmp.
 
         :param ip: ip адрес целевого оборудования
         :param community_read: имя community для чтения параметров по протоколу snmp
         :param community_write: имя community для записи параметров по протоколу snmp
-        :param tftp_server: ip адрес сервера, на котором запущен демон tftp
+        :param tftp_server: ip адрес сервера, на котором запущен демон TFTP
         :param config_load_method: метод загрузки конфигурационного файла из папки
-                                   tftp сервера
-        :param tftp_path: путь к папке tftp сервера
-        :param username: имя пользователя для авторизации на сервер tftp по протоколу ssh
-        :param password: пароль пользователя для авторизации на сервер tftp по протоколу ssh
+                                   TFTP сервера
+        :param tftp_path: путь к папке TFTP сервера
+        :param username: имя пользователя для авторизации на сервер TFTP по протоколу ssh
+        :param password: пароль пользователя для авторизации на сервер TFTP по протоколу ssh
         """
 
         self.ip = ip
@@ -69,8 +67,8 @@ class Dlink(object):
 
         try:
             snmp_result = self.snmp.get(oid_sysname)
-        except snmp.SnmpOtherException as snmp_exc:
-            logging.critical(snmp_exc)
+        except snmp.SnmpException as snmp_exc:
+            logging.error(snmp_exc)
             raise DlinkInitException(
                 self.ip, 'не удалось определить тип оборудования'
             )
@@ -111,7 +109,8 @@ class Dlink(object):
 
         try:
             snmp_result = self.snmp.get(firmware_oid)
-        except snmp.SnmpException:
+        except snmp.SnmpException as snmp_exc:
+            logging.error(snmp_exc)
             raise DlinkInitException(
                 self.ip, '%s - не удалось определить версию прошивки оборудования'
             )
@@ -191,10 +190,9 @@ class Dlink(object):
         В методе определены oid'ы используемого оборудования.
         Метод работает следующим образом - по snmp запрашивается oid_sysname
         и по нему определяется тип оборудования, по типу оборудования
-        запрашиваются соответствующие oid и на указанный tftp сервер
+        запрашиваются соответствующие oid и на указанный TFTP сервер
         закачивается конфигурационный файл оборудования, далее он считывается
-        в виде массива строк и удаляется с сервера. Массив строк слегка
-        обрабатывается и возвращается как результат.
+        в виде строки и удаляется с сервера.
 
         :param timeout: таймаут на получение конфигурационного файла
 
@@ -209,15 +207,15 @@ class Dlink(object):
                 self.get_firmware_version()
 
         except DlinkInitException as dlink_exc:
-            logging.critical(dlink_exc)
+            logging.error(dlink_exc)
             raise DlinkConfigException(
-                self.ip, 'дальнейшая работа невозможна'
+                self.ip, 'дальнейшая работа с оборудованием невозможна'
             )
 
         cfg_file_name = 'config-%s.cfg' % self.ip
 
         # набор oid'ов для конфигурации обрудования DES-3*** на отдачу
-        # конфигурационного файла на tftp сервер
+        # конфигурационного файла на TFTP сервер
         oids_des = (
             ('1.3.6.1.4.1.171.12.1.2.1.1.3.3', IpAddress(self.tftp_server)),
             ('1.3.6.1.4.1.171.12.1.2.1.1.4.3', Integer(2)),
@@ -228,7 +226,7 @@ class Dlink(object):
         )
 
         # набор oid'ов для конфигурации обрудования DGS-3*** на отдачу
-        # конфигурационного файла на tftp сервер
+        # конфигурационного файла на TFTP сервер
         oids_dgs = (
             ('1.3.6.1.4.1.171.12.1.2.18.1.1.3.3', IpAddress(self.tftp_server)),
             ('1.3.6.1.4.1.171.12.1.2.18.1.1.5.3', OctetString(cfg_file_name)),
@@ -237,7 +235,7 @@ class Dlink(object):
         )
 
         # набор oid'ов для конфигурации обрудования DGS-3100 на отдачу
-        # конфигурационного файла на tftp сервер
+        # конфигурационного файла на TFTP сервер
         oids_tg = (
             ('1.3.6.1.4.1.171.10.94.89.89.87.2.1.4.1', IpAddress(self.ip)),
             ('1.3.6.1.4.1.171.10.94.89.89.87.2.1.5.1', Integer(1)),
@@ -386,7 +384,7 @@ class Dlink(object):
                         (file_path, self.tftp_server)
                     )
 
-        logging.debug(
+        logging.info(
             '%s - конфигурационный файла получен успешно' % self.ip
         )
         return result

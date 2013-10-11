@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 # уровень логирования
+# logging level
 #  0 - NOTSET
 # 10 - DEBUG
 # 20 - INFO
@@ -9,23 +10,33 @@
 # 50 - CRITICAL
 log_level = 20
 
-# адрес tftp сервера для загрузки на него
+# адрес TFTP сервера для загрузки на него
 # конфигурационных файлов оборудования
 # если не планируется работа с конфиг файлами,
 # то оставьте это поле пустым
+# TFTP server address to upload config files to it
+# if you don't want to work with config files,
+# leave this field blank
 tftp_server = ''
 
 # метод загрузки конфига оборудования, допустимые значения:
 # local - загрузка из локальной папки
 # ssh - загрузка по протоколу ssh с удаленного сервера
+# config file download method, valid values:
+# local - download from local directory
+# ssh - download from remote server via ssh protocol
 config_load_method = ''
 # путь к папке, в которую загружаются конфигурационные файлы с оборудования
+# path to the directory in which the files will be stored
 tftp_path = ''
 # параметры для подключения к удаленному серверу по протоколу ssh
 # если используется метод local - оставьте эти поля пустыми
+# ssh credentials for connecting to a remote server
+# if local method is use - leave this field blank
 username = ''
 password = ''
 
 # snmp community по умолчанию
+# default snmp community
 community_read = ''
 community_write = ''

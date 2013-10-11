@@ -1,0 +1,12 @@
+# DESCRIPTION
+
+Данное ПО является инструментом для сбора конфигурационных файлов оборудования D-Link.
+This Software is a tool to collect D-link's equipment configuration files.
+
+Использование / Usage:
+./run.py --help
+
+Требования / Requirements:
+* python 2.7
+* paramiko 1.11.0
+* pysnmp 4.2.4
