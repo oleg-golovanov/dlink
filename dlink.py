@@ -9,6 +9,7 @@ import socket
 
 import paramiko
 from pysnmp.proto.rfc1902 import IpAddress, Integer, OctetString
+import pyparsing as pp
 
 import service
 import snmp
@@ -51,6 +52,7 @@ class Dlink(object):
         self.password = password
         self.snmp = snmp.Snmp(self.ip, community_read, community_write, timeout=3)
 
+        self.chassis = service.Chassis()
         self.ports = service.Ports()
         self.eqp_type = None
         self.firmware = None
@@ -159,13 +161,14 @@ class Dlink(object):
                 # 6 - ethernetCsmacd
                 # 117 - gigabitEthernet
                 if int(_type) in [6, 117] and 'ch' not in str(name):
-                    port_tuple = service.ports_int_2_ports_tuple(int(index))
+                    port_index = int(index)
+                    port_tuple = service.ports_int_2_ports_tuple(port_index)
                     port_str = service.ports_tuple_2_ports_str(
                         *port_tuple
                     )
-                    self.ports[port_str] = service.Port(port_str)
-                    self.ports[port_str]['port'] = int(index)
-                    self.ports[port_str]['speed'] = int(speed / 1000000)
+                    self.ports[port_index] = service.Port(port_str)
+                    self.ports[port_index]['port'] = port_index
+                    self.ports[port_index]['speed'] = int(speed / 1000000)
                     # возможные статусы
                     # 1: up
                     # 2: down
@@ -174,13 +177,13 @@ class Dlink(object):
                     # 5: dormant
                     # 6: notPresent
                     # 7: lowerLayerDown
-                    self.ports[port_str]['status'] = int(status)
-                    self.ports[port_str]['alias'] = str(alias)
+                    self.ports[port_index]['status'] = int(status)
+                    self.ports[port_index]['alias'] = str(alias)
                     result += port_tuple
 
-            self.ports['ports'] = service.ports_tuple_minimize(*result)
+            self.ports.ports_tuple = service.ports_tuple_minimize(*result)
 
-            logging.debug(
+            logging.info(
                 '%s - набор портов оборудования определен успешно' % self.ip
             )
 
@@ -387,7 +390,200 @@ class Dlink(object):
         logging.info(
             '%s - конфигурационный файла получен успешно' % self.ip
         )
+        self.chassis.config_file = result
         return result
+
+    def parse_config(self):
+        """
+        Метод парсинга конфигурационного файла по
+        ключевым опциям.
+        """
+
+        if not self.chassis.config_file:
+            self.get_config()
+
+        if not self.ports:
+            self.get_ports()
+
+        # определение значения по-умолчанию опции traffic_segmentation
+        for port in self.ports:
+            port.traffic_segmentation = self.ports.ports_tuple
+
+        states = [
+            'config',
+            'enable',
+            'disable',
+            'create',
+            'delete'
+        ]
+
+        keywords = [
+            'vlan',
+            'lldp',
+            'stp',
+            'traffic_segmentation',
+            'loopdetect',
+            'dhcp_local_relay'
+        ]
+
+        # common
+        ports = pp.Word('0123456789:/(),-').setResultsName('ports')
+        option = pp.Word(pp.alphanums + '_').setResultsName('option*')
+        value = pp.Word(pp.alphanums + '_-').setResultsName('value*')
+        state_lit = pp.Optional(pp.Literal('state').suppress())
+        ports_lit = pp.Literal('ports').suppress()
+
+        # general
+        state = pp.oneOf(states).setResultsName('state')
+        key = pp.oneOf(keywords).setResultsName('key')
+        white = pp.White(' ').suppress()
+        cr = pp.White('\r\n').suppress()
+        other = pp.SkipTo(pp.lineEnd).setResultsName('other')
+        # rules
+        general = state + key + (cr ^ (white + other))
+        general.ignore(pp.pythonStyleComment)
+        general.ignore(pp.Regex(r'!.*'))
+
+        # vlan
+        vlan_name = pp.Word(pp.alphanums).setResultsName('name')
+        vlan_action = pp.oneOf('delete add').setResultsName('action')
+        vlan_type = pp.oneOf('untagged tagged').setResultsName('type')
+        vlan_tag = pp.Word(pp.nums).setResultsName('tag')
+        # rules
+        vlan_create = vlan_name + pp.Literal('tag').suppress() + vlan_tag
+        vlan_config = vlan_name + vlan_action + pp.Optional(vlan_type) + ports
+        vlan = vlan_create ^ vlan_config
+
+        # lldp rules
+        lldp = pp.Optional(pp.Literal('ports').suppress() + ports) + option + value
+
+        # traffic_segmentation
+        ports_from = ports.setResultsName('ports_from')
+        ports_to = (ports ^ pp.Literal('all')).setResultsName('ports_to')
+        # rules
+        traf_segm = ports_from + pp.Literal('forward_list').suppress() + ports_to
+
+        # loopdetect
+        loopdetect_general = pp.OneOrMore(option + state_lit + value)
+        loopdetect_ports = pp.Literal('ports').suppress() + ports + option + value
+        # rules
+        loopdetect = loopdetect_ports ^ loopdetect_general
+
+        # dhcp_local_relay rules
+        dhcp_local_relay = pp.Literal('vlan').suppress() + vlan_name + option + value
+
+        # stp rules
+        stp = pp.Optional(ports_lit + ports) + pp.OneOrMore(option + value)
+        stp.ignore(pp.Literal('mst') + pp.SkipTo(pp.lineEnd))
+
+        logging.info(
+            '%s - парсинг конфигурационного файла...' % self.ip
+        )
+
+        strings = general.searchString(self.chassis.config_file)
+
+        for str_p in strings:
+            try:
+                if str_p.state in ['enable', 'disable']:
+                    options_dict = {'state': str_p.state}
+                    self.chassis.add_option(str_p.key, options_dict)
+
+                else:
+                    # vlan option processing
+                    if str_p.key == 'vlan':
+                        vlan_p = vlan.parseString(str_p.other)
+
+                        if vlan_p.tag:
+                            options_dict = {
+                                vlan_p.name: {
+                                    'tag': vlan_p.tag,
+                                    'dhcp_local_relay': 'disable'
+                                }
+                            }
+                            self.chassis.add_option('vlan', options_dict)
+
+                        if vlan_p.action:
+                            if vlan_p.action == 'add':
+                                options_dict = {
+                                    vlan_p.name: {
+                                        'tag': self.chassis.vlan[vlan_p.name]['tag'],
+                                        'type': vlan_p.type
+                                    }
+                                }
+                                self.ports.add_options(vlan_p.ports, 'vlan', options_dict)
+
+                            if vlan_p.action == 'delete':
+                                self.ports.del_options(vlan_p.ports, 'vlan', vlan_p.name)
+
+                    # lldp option processing
+                    elif str_p.key == 'lldp':
+                        lldp_p = lldp.parseString(str_p.other)
+
+                        options_dict = dict(zip(lldp_p.option, lldp_p.value))
+
+                        if lldp_p.ports:
+                            self.ports.add_options(lldp_p.ports, 'lldp', options_dict)
+                        else:
+                            self.chassis.add_option('lldp', options_dict)
+
+                    # traffic_segmentation option processing
+                    elif str_p.key == 'traffic_segmentation':
+                        traf_segm_p = traf_segm.parseString(str_p.other)
+
+                        if traf_segm_p.ports_from == 'all':
+                            ports_from = self.ports.ports_tuple
+                        else:
+                            ports_from = traf_segm_p.ports_from
+
+                        if traf_segm_p.ports_to == 'all':
+                            ports_to_tuple = self.ports.ports_tuple
+                        else:
+                            ports_to_tuple = service.ports_str_2_ports_tuple(
+                                traf_segm_p.ports_to
+                            )
+
+                        self.ports.add_options(ports_from, 'traffic_segmentation', ports_to_tuple)
+
+                    # loopdetect option processing
+                    elif str_p.key == 'loopdetect':
+                        loopdetect_p = loopdetect.parseString(str_p.other)
+                        if loopdetect_p.ports:
+                            self.ports.add_options(loopdetect_p.ports ,'loopdetect', loopdetect_p.value[0])
+                        else:
+                            options_dict = dict(
+                                zip(loopdetect_p.option, loopdetect_p.value)
+                            )
+                            self.chassis.add_option('loopdetect', options_dict)
+
+                    # dhcp_local_relay option processing
+                    elif str_p.key == 'dhcp_local_relay':
+                        dhcp_p = dhcp_local_relay.parseString(str_p.other)
+                        self.chassis.vlan[dhcp_p.name]['dhcp_local_relay'] = dhcp_p.value[0]
+
+                    # stp option processing
+                    elif str_p.key == 'stp':
+                        stp_p = stp.parseString(str_p.other)
+
+                        options_dict = dict(zip(stp_p.option, stp_p.value))
+                        if stp_p.ports:
+                            ports_int = service.ports_str_2_ports_int(
+                                stp_p.ports
+                            )
+                            for port_id in ports_int:
+                                self.ports[port_id]['stp'].update(options_dict)
+                        else:
+                            self.chassis.stp.update(options_dict)
+
+            # пропуск строк, не подпадающих под правила
+            except pp.ParseException:
+                pass
+
+        for port in self.ports:
+            port.define_port_type()
+
+        logging.info(
+            '%s - парсинг закончен' % self.ip
+        )
 
 
 class DlinkException(service.BasicException):
