@@ -566,11 +566,7 @@ class Dlink(object):
 
                         options_dict = dict(zip(stp_p.option, stp_p.value))
                         if stp_p.ports:
-                            ports_int = service.ports_str_2_ports_int(
-                                stp_p.ports
-                            )
-                            for port_id in ports_int:
-                                self.ports[port_id]['stp'].update(options_dict)
+                            self.ports.add_options(stp_p.ports, 'stp', options_dict)
                         else:
                             self.chassis.stp.update(options_dict)
 

@@ -5,7 +5,9 @@ import logging
 import copy
 import sys
 import re
-from collections import OrderedDict
+import collections
+
+import dictdiffer
 
 from settings import log_level
 
@@ -83,7 +85,7 @@ class Ports(Base):
         Конструктор класса, заменяющий словарь на упорядоченный словарь.
         """
 
-        self.__dict__ = OrderedDict(*args, **kwargs).__dict__
+        self.__dict__ = collections.OrderedDict(*args, **kwargs)
         self.ports_tuple = None
 
     def __nonzero__(self):
@@ -403,7 +405,7 @@ def ports_str_2_ports_tuple(arg):
                 if not port_end:
                     end = __end
                 else:
-                    end = end - 1
+                    end -= 1
                     __module, __begin, end = ports_int_2_ports_tuple(end)[0]
 
             result.append((module, begin, end))
@@ -490,6 +492,51 @@ def ports_any_2_ports_int(arg):
 
     return result
 
+
+def dict_substract(minuend, subtrahend):
+    """
+    Функция вычитания одного словаря из другого.
+    уменьшаемое (minuend) - вычитаемое (subtrahend) = разность (difference)
+
+        >>> result = dict_substract({'a': 'b', 'b': 'c'}, {'b': 'c'})
+        >>> print(result)
+        {'a': 'b'}
+
+    """
+
+    destination = collections.defaultdict(dict)
+    diff = (
+        i for i in
+        dictdiffer.diff(subtrahend, minuend)
+        if i[0] in ['add', 'change', 'push']
+    )
+
+    def add(node, changes):
+        for key, value in changes:
+            dictdiffer.dot_lookup(destination, node)[key] = value
+
+    def change(node, changes):
+        dest = dictdiffer.dot_lookup(destination, node, parent=True)
+        last_node = node.split('.')[-1]
+        _, value = changes
+        dest[last_node] = value
+
+    def push(node, changes):
+        dest = dictdiffer.dot_lookup(destination, node, parent=True) \
+                         .setdefault(node, [])
+        for val in changes:
+            dest.append(val)
+
+    patchers = {
+        'add': add,
+        'change': change,
+        'push': push
+    }
+
+    for action, node, changes in diff:
+        patchers[action](node, changes)
+
+    return dict(destination)
 
 logger = logging.getLogger()
 logger.setLevel(log_level)
