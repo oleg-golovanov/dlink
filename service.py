@@ -74,6 +74,32 @@ class Chassis(Base):
 
         self[key].update(option)
 
+    def get_commands(self, option_dict):
+        """
+        Метод получения команд из набора настроек.
+
+        :param option_dict: словарь с глобальными настройками оборудования
+        :rtype: список строк
+        """
+
+        tune_dict = dict_substract(option_dict, self.__dict__)
+        commands = []
+
+        for k, options in tune_dict.iteritems():
+            for o, v in options.iteritems():
+                if o == 'state':
+                    commands.append('%s %s' % (v, k))
+                elif o == 'instance_id':
+                    for o1, v1 in v.iteritems():
+                        if 'priority' in v1:
+                            commands.append(
+                                'config %s priority %s %s %s' % (k, v1['priority'], o, o1)
+                            )
+                else:
+                    commands.append('config %s %s %s' % (k, o, v))
+
+        return commands
+
 
 class Ports(Base):
     """
@@ -504,7 +530,10 @@ def dict_substract(minuend, subtrahend):
 
     """
 
-    destination = collections.defaultdict(dict)
+    def factory():
+        return collections.defaultdict(factory)
+    destination = collections.defaultdict(factory)
+
     diff = (
         i for i in
         dictdiffer.diff(subtrahend, minuend)

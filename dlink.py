@@ -564,7 +564,17 @@ class Dlink(object):
                     elif str_p.key == 'stp':
                         stp_p = stp.parseString(str_p.other)
 
-                        options_dict = dict(zip(stp_p.option, stp_p.value))
+                        if 'instance_id' in list(stp_p.option):
+                            options_dict = {
+                                'instance_id': {
+                                    stp_p.value[1]: {
+                                        stp_p.option[0]: stp_p.value[0]
+                                    }
+                                }
+                            }
+                        else:
+                            options_dict = dict(zip(stp_p.option, stp_p.value))
+
                         if stp_p.ports:
                             self.ports.add_options(stp_p.ports, 'stp', options_dict)
                         else:
