@@ -547,12 +547,14 @@ class Dlink(object):
                     # loopdetect option processing
                     elif str_p.key == 'loopdetect':
                         loopdetect_p = loopdetect.parseString(str_p.other)
+
+                        options_dict = dict(
+                            zip(loopdetect_p.option, loopdetect_p.value)
+                        )
+
                         if loopdetect_p.ports:
-                            self.ports.add_options(loopdetect_p.ports ,'loopdetect', loopdetect_p.value[0])
+                            self.ports.add_options(loopdetect_p.ports ,'loopdetect', options_dict)
                         else:
-                            options_dict = dict(
-                                zip(loopdetect_p.option, loopdetect_p.value)
-                            )
                             self.chassis.add_option('loopdetect', options_dict)
 
                     # dhcp_local_relay option processing

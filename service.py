@@ -76,13 +76,13 @@ class Chassis(Base):
 
     def get_commands(self, option_dict):
         """
-        Метод получения команд из набора настроек.
+        Метод получения команд из набора настроек оборудования.
 
-        :param option_dict: словарь с глобальными настройками оборудования
+        :param option_dict: словарь с настройками оборудования
         :rtype: список строк
         """
 
-        tune_dict = dict_substract(option_dict, self.__dict__)
+        tune_dict = dict_substract(option_dict['global'], self.__dict__)
         commands = []
 
         for k, options in tune_dict.iteritems():
@@ -177,6 +177,58 @@ class Ports(Base):
 
         for port_id in ports_int:
             del self.__dict__[port_id][key][option]
+
+    def get_commands(self, option_dict):
+        """
+        Метод получения команд из набора настроек портов.
+
+        :param option_dict: словарь с настройками оборудования
+        :rtype: список строк
+        """
+
+        port_dict = option_dict['port']
+        access_dict = option_dict['access']
+        trunk_dict = option_dict['trunk']
+
+        all_ports = []
+        trunk_ports = []
+        access_ports = []
+
+        for p_tuple in enumerate(self, 1):
+            all_ports.append(p_tuple)
+            if p_tuple[1].port_type == 0:
+                trunk_ports.append(p_tuple)
+            else:
+                access_ports.append(p_tuple)
+
+        def create_commands(ports, options_dict):
+            commands = []
+
+            for k, options in options_dict.iteritems():
+                for o, v in options.iteritems():
+                    ports_int = []
+                    for p_id, p in ports:
+                        try:
+                            pv = p[k][o]
+                        except KeyError:
+                            ports_int.append(p_id)
+                        else:
+                            if v != pv:
+                                ports_int.append(p_id)
+
+                    if ports_int:
+                        ports_str = ports_tuple_2_ports_str(
+                            *ports_int_2_ports_tuple(*ports_int)
+                        )
+                        commands.append(
+                            'config %s ports %s %s %s' % (k, ports_str, o, v)
+                        )
+
+            return commands
+
+        return create_commands(all_ports, port_dict) + \
+               create_commands(trunk_ports, trunk_dict) + \
+               create_commands(access_ports, access_dict)
 
 
 class Port(Base):
