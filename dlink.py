@@ -148,6 +148,9 @@ class Dlink(object):
         # запрашиваем оборудование по snmp на предмет имен
         # и типов интерфейсов
         try:
+            logging.info(
+                '%s - определение набора портов оборудования...' % self.ip
+            )
             snmp_result = self.snmp.next(*oids_interface)
         except snmp.SnmpException as snmp_exc:
             logging.error(snmp_exc)
@@ -592,6 +595,21 @@ class Dlink(object):
         logging.info(
             '%s - парсинг закончен' % self.ip
         )
+
+    def analyze_config(self, option_dict):
+        """
+        Метод анализа конфигурационного файла и формирования
+        команд на основе словаря настроек.
+
+        :param option_dict: словарь с настройками оборудования
+
+        :rtype: массив строк
+        """
+
+        self.parse_config()
+
+        return self.ports.get_commands(option_dict, self.eqp_type) + \
+               self.chassis.get_commands(option_dict)
 
 
 class DlinkException(service.BasicException):

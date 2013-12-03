@@ -178,7 +178,7 @@ class Ports(Base):
         for port_id in ports_int:
             del self.__dict__[port_id][key][option]
 
-    def get_commands(self, option_dict):
+    def get_commands(self, option_dict, eqp_type=''):
         """
         Метод получения команд из набора настроек портов.
 
@@ -218,7 +218,8 @@ class Ports(Base):
 
                     if ports_int:
                         ports_str = ports_tuple_2_ports_str(
-                            *ports_int_2_ports_tuple(*ports_int)
+                            *ports_int_2_ports_tuple(*ports_int),
+                            eqp_type=eqp_type
                         )
                         commands.append(
                             'config %s ports %s %s %s' % (k, ports_str, o, v)
@@ -258,7 +259,7 @@ class Port(Base):
         }
         self.traffic_segmentation = None
         self.lldp = {}
-        self.loopdetect = None
+        self.loopdetect = {}
         self.stp = {}
 
     def define_port_type(self):
@@ -372,7 +373,7 @@ def ports_tuple_2_ports_str(*arg, **kwargs):
 
     # присвоение элементу 'style' словаря 'kwargs'
     # значения по умолчанию 'normal'
-    kwargs.setdefault('style', 'normal')
+    eqp_type = kwargs.get('eqp_type', '')
 
     range_min = ports_tuple_minimize(*arg)
     range_str = []
@@ -380,7 +381,7 @@ def ports_tuple_2_ports_str(*arg, **kwargs):
         if port_to - port_from == 1:
             range_str.append('%d:%d' % (module, port_from))
         else:
-            if kwargs['style'] == 'tg':
+            if 'DGS-3100' in eqp_type:
                 range_str.append(
                     '%d:(%d-%d)' % (module, port_from, port_to - 1)
                 )
