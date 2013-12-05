@@ -2,9 +2,32 @@
 # -*- coding: utf-8 -*-
 
 
-import argparse
+"""
+This is a tool to collect D-link's equipment configuration files
+
+usage:
+    run.py get-conf (<ip> ... | -i <file>) [-o <path>]
+
+arguments:
+    get-conf                 get configuration file from target equipment
+    <ip>                     ip address of target equipment or sequence, separated by space
+
+options:
+    -h --help                show this screen
+    -i --input-file <file>   file with ip addresses, separated by carrier return
+    -o --output <path>       output destination, can be path to file, if single ip,
+                             or path to directory, if ip sequence or input-file option
+                             is present; defaults:
+                                /dev/stdout for single ip,
+                                ./ for ip sequence or --input-file option
+"""
+
+
+import sys
 import logging
 import os
+
+from docopt import docopt
 
 import dlink
 import settings
@@ -22,93 +45,84 @@ def ip_validate(arg):
         return False
     else:
         for octet in octets:
-            if not octet.isdigit():
-                return False
-            if not 0 <= int(octet) <= 255:
+            if not octet.isdigit() or not 0 <= int(octet) <= 255:
                 return False
         return True
 
+def eqp_gen(arg):
+    """
+    Генератор инстансов класса Dlink
+    """
+
+    for _ip in arg:
+        try:
+            ping.ping(_ip)
+        except ping.PingException as _exc:
+            logging.error(_exc)
+        else:
+            yield dlink.Dlink(_ip, **settings.__dict__)
+
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(
-        description="""This is a tool to collect D-link's equipment configuration files"""
-    )
+    args = docopt(__doc__)
 
-    source = parser.add_mutually_exclusive_group(required=True)
-    source.add_argument(
-        '--ip',
-        metavar='',
-        help='ip address of target equipment or sequence, separated by comma',
-    )
-    source.add_argument(
-        '--input-file',
-        metavar='',
-        help='file with ip addresses, separated by carrier return',
-        type=argparse.FileType('r')
-    )
+    ip_addrs = args['<ip>']
 
-    parser.add_argument(
-        '--output',
-        metavar='',
-        help='''
-        output destination, can be path to file, if single ip,
-        or path to directory, if ip sequence or input-file option
-        is present; defaults:
-        /dev/stdout for single ip,
-        ./ for ip sequence or --input-file option
-        '''
-    )
-
-    args = parser.parse_args()
-
-    if args.ip:
-        ip_addrs = args.ip.split(',')
-    else:
-        ip_addrs = [ip.strip() for ip in args.input_file.readlines()]
+    if args['--input-file']:
+        try:
+            with open(args['--input-file'], 'r') as _f:
+                ip_addrs = [ip.strip() for ip in _f.readlines()]
+        except IOError as exc:
+            logging.critical(exc)
+            sys.exit(0)
 
     # проверка ip адресов
     not_valid_ip = False
     for ip in ip_addrs:
         if not ip_validate(ip):
-            logging.error('Not valid ip address - %s' % ip)
+            logging.error(
+                'Not valid ip address - %s' % ip
+            )
             not_valid_ip = True
 
     if not_valid_ip:
-        logging.critical('Some ip addresses not valid')
-        parser.exit(1)
+        logging.critical(
+            'Some ip addresses not valid'
+        )
+        sys.exit(1)
 
-    if not args.output:
-        dir_path = '/dev/stdout' if len(ip_addrs) == 1 else '.'
-        file_path = ''
-    else:
-        dir_path, file_path = os.path.split(args.output)
-        if not dir_path:
-            dir_path = '.'
-        if len(ip_addrs) != 1:
-            dir_path = args.output
-
-    if not os.access(dir_path, os.F_OK):
-        logging.critical('No such directory: %r' % dir_path)
-        parser.exit(1)
-
-    if not os.access(dir_path, os.W_OK):
-        logging.critical('Permission denied: %r' % dir_path)
-        parser.exit(1)
-
-    for ip in ip_addrs:
-        try:
-            ping.ping(ip)
-        except ping.PingException as exc:
-            logging.error(exc)
+    if args['get-conf']:
+        if not args['--output']:
+            dir_path = '/dev/stdout' if len(ip_addrs) == 1 else '.'
+            file_path = ''
         else:
-            equipment = dlink.Dlink(ip, **settings.__dict__)
+            dir_path, file_path = os.path.split(args['--output'])
+            if not dir_path:
+                dir_path = '.'
+            if len(ip_addrs) != 1:
+                dir_path = args['--output']
+
+        if not os.access(dir_path, os.F_OK):
+            logging.critical(
+                'No such directory: %r' % dir_path
+            )
+            sys.exit(1)
+
+        if not os.access(dir_path, os.W_OK):
+            logging.critical(
+                'Permission denied: %r' % dir_path
+            )
+            sys.exit(1)
+
+
+        for equipment in eqp_gen(ip_addrs):
             try:
                 config = equipment.get_config()
             except dlink.DlinkConfigException as exc:
                 logging.error(exc)
             else:
                 if len(ip_addrs) == 1:
-                    path = dir_path if not args.output else os.path.join(dir_path, file_path)
+                    path = dir_path if not args['--output'] else os.path.join(dir_path, file_path)
                 else:
-                    path = os.path.join(dir_path, ip + '.cfg')
+                    path = os.path.join(dir_path, equipment.ip + '.cfg')
                 with open(path, 'w') as _f:
                     _f.write(config)
