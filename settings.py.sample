@@ -40,3 +40,17 @@ password = ''
 # default snmp community
 community_read = ''
 community_write = ''
+
+# имя управляющего vlan'а для определения типа порта, trunk или access
+# trunk значит, что в порту присутствует управляющий vlan
+# обычно используется для соединения оборудования между собой
+# access порт не содержит управляющего vlan'а и обычно используется
+# для подключения пользовательского оборудования
+# если вы не собираетесь настраивать оборудование, то оставьте это поле пустым
+# management vlan name for define port type, trunk or access
+# trunk means that port contain management vlan
+# commonly used for interconnect equipment
+# access port don't contain management vlan and commonly used
+# for connect user's equipment
+# if you don't want to tune equipment, leave this field blank
+mgmt_vlan_name = ''

@@ -24,6 +24,7 @@ class Dlink(object):
                  ip,
                  community_read,
                  community_write,
+                 mgmt_vlan_name,
                  tftp_server='',
                  config_load_method='local',
                  tftp_path='',
@@ -51,6 +52,7 @@ class Dlink(object):
         self.username = username
         self.password = password
         self.snmp = snmp.Snmp(self.ip, community_read, community_write, timeout=3)
+        self.mgmt_vlan_name = mgmt_vlan_name
 
         self.chassis = service.Chassis()
         self.ports = service.Ports()
@@ -590,7 +592,7 @@ class Dlink(object):
                 pass
 
         for port in self.ports:
-            port.define_port_type()
+            port.define_port_type(self.mgmt_vlan_name)
 
         logging.info(
             '%s - парсинг закончен' % self.ip

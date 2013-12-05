@@ -262,7 +262,7 @@ class Port(Base):
         self.loopdetect = {}
         self.stp = {}
 
-    def define_port_type(self):
+    def define_port_type(self, mgmt_vlan_name):
         """
         Метод определения типа порта.
         Типы портов:
@@ -270,7 +270,7 @@ class Port(Base):
           access - 1
         """
 
-        if not 'default' in self.vlan:
+        if not mgmt_vlan_name in self.vlan:
             self.port_type = 1
 
 
