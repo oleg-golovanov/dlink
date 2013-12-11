@@ -16,7 +16,7 @@ class Config(object):
         """
         Конструктор класса.
 
-        :param path: путь до конфигурационного файла
+        :param path: путь к папке с конфигурационными файлами
         :param default_config: имя конфигурационного файла по умолчанию
         """
 
@@ -34,6 +34,25 @@ class Config(object):
                     'в папке %r' % (self.default, self.path)
                 )
 
+    @staticmethod
+    def get_options(path):
+        """
+        Метод формирования структуры данных из конфигурационного файла,
+        указанного в пути.
+
+        :param path: путь к файлу
+        :rtype: словарь с настройками
+        """
+
+        try:
+            with open(path, 'r') as _f:
+                config_str = _f.read().lower()
+                options = json.loads(config_str)
+        except (IOError, ValueError) as exc:
+            raise ConfigException(exc)
+        else:
+            return collections.defaultdict(dict, options)
+
     def load_options(self, eqp_type=None):
         """
         Метод формирования структуры данных из конфигурационного файла.
@@ -50,11 +69,7 @@ class Config(object):
 
         c_file_path = os.path.join(self.path, c_file_name)
 
-        with open(c_file_path) as _f:
-            config_str = _f.read().lower()
-            options = json.loads(config_str)
-
-        return collections.defaultdict(dict, options)
+        return self.get_options(c_file_path)
 
 
 class ConfigException(Exception):
