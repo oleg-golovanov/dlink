@@ -1,0 +1,52 @@
+{
+    "global": {
+        "lldp": {
+            "state": "enable"
+        },
+        "stp": {
+            "state": "enable",
+            "instance_id": {
+                "0": {
+                    "priority": "32768"
+                }
+            }
+	    },
+        "loopdetect": {
+            "recover_timer": "300",
+            "interval": "1",
+            "mode": "port-based"
+        }
+    },
+
+    "port": {
+        "lldp": {
+            "notification": "disable"
+        }
+    },
+
+    "access": {
+        "lldp": {
+            "admin_status": "disable"
+        },
+        "stp": {
+            "state": "disable",
+            "fbpdu": "disable"
+        },
+        "loopdetect": {
+            "state": "enable"
+        }
+    },
+
+    "trunk": {
+        "lldp": {
+            "admin_status": "tx_and_rx"
+        },
+        "stp": {
+            "state": "enable",
+            "fbpdu": "enable"
+        },
+        "loopdetect": {
+            "state": "disable"
+        }
+    }
+}
