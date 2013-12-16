@@ -7,19 +7,25 @@ This is a tool to collect D-link's equipment configuration files
 
 usage:
     run.py get-conf (<ip> ... | -i <file>) [-o <path>]
+    run.py tune [-n] <ip> [<file>]
 
 arguments:
-    get-conf                 get configuration file from target equipment
-    <ip>                     ip address of target equipment or sequence, separated by space
+    get-conf                  get configuration file from target equipment
+    tune                      tune target equipment
+    <ip>                      ip address of target equipment or sequence, separated by space
+    <file>                    config file in json format such as default.json.sample
+                              if don't use this option будет will be use settings_dir_path
+                              parameter from settings.py
 
 options:
-    -h --help                show this screen
-    -i --input-file <file>   file with ip addresses, separated by carrier return
-    -o --output <path>       output destination, can be path to file, if single ip,
-                             or path to directory, if ip sequence or input-file option
-                             is present; defaults:
-                                /dev/stdout for single ip,
-                                ./ for ip sequence or --input-file option
+    -h --help                 show this screen
+    -i --input-file <file>    file with ip addresses, separated by carrier return
+    -o --output <path>        output destination, can be path to file, if single ip,
+                              or path to directory, if ip sequence or input-file option
+                              is present; defaults:
+                                 /dev/stdout for single ip,
+                                 ./ for ip sequence or --input-file option
+    -n --dry-run              print commands without execute it on equipment
 """
 
 
@@ -33,6 +39,7 @@ import dlink
 import settings
 import service
 import ping
+import json_config
 
 
 def ip_validate(arg):
@@ -113,7 +120,6 @@ if __name__ == '__main__':
             )
             sys.exit(1)
 
-
         for equipment in eqp_gen(ip_addrs):
             try:
                 config = equipment.get_config()
@@ -126,3 +132,23 @@ if __name__ == '__main__':
                     path = os.path.join(dir_path, equipment.ip + '.cfg')
                 with open(path, 'w') as _f:
                     _f.write(config)
+
+    elif args['tune']:
+        for equipment in eqp_gen(ip_addrs):
+            try:
+                if args['<file>']:
+                    func, arg = json_config.Config.get_options, args['<file>']
+                else:
+                    config = json_config.Config(settings.settings_dir_path)
+                    func, arg = config.load_options, equipment.get_eqp_type()
+                cmd = equipment.analyze_config(func(arg))
+            except (json_config.ConfigException,
+                    dlink.DlinkInitException,
+                    dlink.DlinkConfigException) as exc:
+                logging.critical(exc)
+                sys.exit(1)
+
+            if args['--dry-run']:
+                print cmd
+            else:
+                pass

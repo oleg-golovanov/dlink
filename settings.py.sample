@@ -54,3 +54,15 @@ community_write = ''
 # for connect user's equipment
 # if you don't want to tune equipment, leave this field blank
 mgmt_vlan_name = ''
+
+# путь к папке с настроечными файлами в формате json
+# в этой папке обязательно должен присутствовать файла default.json
+# он будет применяться, если файл типа оборудования не был найден (например
+# des-3200.json, dgs-3100.json)
+# если вы не собираетесь настраивать оборудование, то оставьте это поле пустым
+# path to directory with settings files in json format
+# in this dir must be present default.json file
+# it will be use if equipment type file was not be found (e.g.
+# des-3200.json, dgs-3100.json)
+# if you don't want to tune equipment, leave this field blank
+settings_dir_path = ''

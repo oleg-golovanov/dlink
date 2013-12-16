@@ -16,8 +16,8 @@ class Config(object):
         """
         Конструктор класса.
 
-        :param path: путь к папке с конфигурационными файлами
-        :param default_config: имя конфигурационного файла по умолчанию
+        :param path: путь к папке с файлами настройки
+        :param default_config: имя файла настройки по умолчанию
         """
 
         self.path = path
@@ -30,14 +30,14 @@ class Config(object):
         else:
             if self.default not in self.c_config_files:
                 raise ConfigException(
-                    'конфигурационный файл по-умолчанию %r отсутствует'
+                    'файл настройки по-умолчанию %r отсутствует'
                     'в папке %r' % (self.default, self.path)
                 )
 
     @staticmethod
     def get_options(path):
         """
-        Метод формирования структуры данных из конфигурационного файла,
+        Метод формирования структуры данных из файла настройки,
         указанного в пути.
 
         :param path: путь к файлу
@@ -55,7 +55,7 @@ class Config(object):
 
     def load_options(self, eqp_type=None):
         """
-        Метод формирования структуры данных из конфигурационного файла.
+        Метод формирования структуры данных из файла настройки.
 
         :param eqp_type: строка типа оборудования
         :rtype: словарь с настройками
