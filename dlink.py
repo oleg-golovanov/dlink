@@ -307,7 +307,6 @@ class Dlink(object):
         file_path = os.path.join(self.tftp_path, cfg_file_name)
 
         if self.config_load_method == 'local':
-            FileDoesNotExistExc = OSError
             open_func = open
             rm_func = os.remove
 
@@ -339,7 +338,6 @@ class Dlink(object):
 
             sftp = ssh.open_sftp()
 
-            FileDoesNotExistExc = IOError
             open_func = sftp.open
             rm_func = sftp.remove
             conn_close_func = ssh.close
@@ -357,7 +355,7 @@ class Dlink(object):
                 try:
                     _f = open_func(file_path, mode='r')
                 # обработка ситуации когда файл еще не создан
-                except FileDoesNotExistExc as exc_fdn:
+                except IOError as io_exc:
                     _c += 1
                 else:
                     cfg_file = _f.read()
@@ -374,7 +372,7 @@ class Dlink(object):
             else:
                 conn_close_func()
 
-                if 'exc_fdn' in locals():
+                if 'io_exc' in locals():
                     raise DlinkConfigException(
                         self.ip, 'конфигурационного файла %s не существует '
                         'на сервере %s' %
