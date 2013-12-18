@@ -40,6 +40,7 @@ import settings
 import service
 import ping
 import json_config
+import telnet
 
 
 def ip_validate(arg):
@@ -142,6 +143,9 @@ if __name__ == '__main__':
                     config = json_config.Config(settings.settings_dir_path)
                     func, arg = config.load_options, equipment.get_eqp_type()
                 cmd = equipment.analyze_config(func(arg))
+                if not cmd:
+                    logging.info('%s - tune not required' % equipment.ip)
+                    sys.exit(0)
             except (json_config.ConfigException,
                     dlink.DlinkInitException,
                     dlink.DlinkConfigException) as exc:
@@ -151,4 +155,21 @@ if __name__ == '__main__':
             if args['--dry-run']:
                 print cmd
             else:
-                pass
+                conn = telnet.Telnet(equipment.ip, eqp_type=equipment.eqp_type)
+                try:
+                    conn.login(
+                        settings.telnet_username,
+                        settings.telnet_password
+                    )
+                except (telnet.TelnetConnException,
+                        telnet.TelnetLoginException) as exc:
+                    logging.critical(exc)
+                    sys.exit(1)
+
+                try:
+                    conn.exec_cmd(*cmd)
+                    conn.save_config()
+                except telnet.TelnetConnException as exc:
+                    logging.critical(exc)
+                    sys.exit(1)
+                conn.close()
