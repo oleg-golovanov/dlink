@@ -66,3 +66,10 @@ mgmt_vlan_name = ''
 # des-3200.json, dgs-3100.json)
 # if you don't want to tune equipment, leave this field blank
 settings_dir_path = ''
+
+# имя пользователя и пароль для авторизации на оборудовании по протоколу telnet
+# если вы не собираетесь настраивать оборудование, то оставьте это поле пустым
+# username and password for authorization on equipment via telnet protocol
+# if you don't want to tune equipment, leave this field blank
+telnet_username = ''
+telnet_password = ''

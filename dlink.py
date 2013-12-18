@@ -265,8 +265,11 @@ class Dlink(object):
             # переопределяем окончание конфигурационного файла для
             # оборудования DGS-3100
             cfg_file_end = '! VOICE VLAN'
-        # DES-3526, DES-3528, DES-3010G
-        elif ('DES-3526' or 'DES-3528' or 'DES-3010G') in self.eqp_type:
+        # DES-3526, DES-3528, DES-3010G, DGS-3200
+        elif 'DES-3526' in self.eqp_type \
+                or 'DES-3528' in self.eqp_type \
+                or 'DES-3010G' in self.eqp_type \
+                or 'DGS-3200' in self.eqp_type:
             current_eqp = oids_des
         # DGS
         elif 'DGS-3' in self.eqp_type:
@@ -309,12 +312,7 @@ class Dlink(object):
         if self.config_load_method == 'local':
             open_func = open
             rm_func = os.remove
-
-            # заглушка
-            def cap():
-                pass
-
-            conn_close_func = cap
+            conn_close_func = lambda: None
 
         elif self.config_load_method == 'ssh':
             ssh = paramiko.SSHClient()
