@@ -1,15 +1,10 @@
 # -*- coding: utf-8 -*-
 
 
-import logging
-import copy
-import sys
 import re
 import collections
 
 import dictdiffer
-
-from settings import log_level
 
 
 class Base(object):
@@ -291,31 +286,6 @@ class BasicException(Exception):
 
     def __str__(self):
         return '%s - %s' % (self.ip, self.msg)
-
-
-class ColoredFormatter(logging.Formatter):
-    """
-    Класс для цветного вывода работы программы в консоль.
-    """
-
-    START = '\x1b['
-    END = '\x1b[0m'
-
-    LEVELCOLOR = {
-        'WARNING': START + '93m%-8s' + END,
-        'ERROR': START + '31m%-8s' + END,
-        'CRITICAL': START + '91;4;1m%-8s' + END
-    }
-
-    def __init__(self, *args, **kwargs):
-        logging.Formatter.__init__(self, *args, **kwargs)
-
-    def format(self, record):
-        record = copy.copy(record)
-        levelname = record.levelname
-        if levelname in self.LEVELCOLOR:
-            record.levelname = self.LEVELCOLOR[levelname] % levelname
-        return logging.Formatter.format(self, record)
 
 
 def ports_tuple_minimize(*arg):
@@ -619,13 +589,3 @@ def dict_substract(minuend, subtrahend):
         patchers[action](node, changes)
 
     return dict(destination)
-
-logger = logging.getLogger()
-logger.setLevel(log_level)
-formatter = ColoredFormatter(
-    fmt='%(asctime)s   %(levelname)-8s   %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
-stdout_log = logging.StreamHandler(sys.stdout)
-stdout_log.setFormatter(formatter)
-logger.addHandler(stdout_log)

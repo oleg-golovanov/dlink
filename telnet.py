@@ -2,11 +2,11 @@
 
 
 import telnetlib
-import logging
 import time
 import socket
 
 import service
+from logger import logger
 
 
 class Telnet(object):
@@ -59,7 +59,7 @@ class Telnet(object):
         else:
             self.telnet.set_debuglevel(self.debug)
             self._is_open = True
-            logging.debug(
+            logger.debug(
                 '%s - telnet соединение успешно установлено' % self.ip
             )
 
@@ -92,7 +92,7 @@ class Telnet(object):
                     self.ip, 'ошибка авторизации - %s' % user
                 )
             else:
-                logging.info(
+                logger.info(
                     '%s - авторизация прошла успешно - %s' % (self.ip, user)
                 )
                 self._is_login = True
@@ -133,15 +133,15 @@ class Telnet(object):
             try:
                 recv = self.listen()
             except TelnetExecException as exc:
-                logging.warning(exc)
+                logger.warning(exc)
             else:
                 if self.success_prompt in recv:
-                    logging.info(
+                    logger.info(
                         '%s - %s - команда выполнена успешно' % (self.ip, cmd)
                     )
                     continue
 
-            logging.warning(
+            logger.warning(
                 '%s - команда выполнена неуспешно - %s' %
                 (self.ip, cmd)
             )
@@ -175,16 +175,16 @@ class Telnet(object):
         try:
             recv = self.listen(15)
         except TelnetExecException as exc:
-            logging.warning(exc)
+            logger.warning(exc)
         else:
             if self.success_prompt in recv or \
                             'Done' in recv:
-                logging.info(
+                logger.info(
                     '%s - конфигурационный файл успешно сохранен' % self.ip
                 )
                 return
 
-        logging.warning(
+        logger.warning(
             '%s - не удалось сохранить конфигурационный файл' %
             self.ip
         )
@@ -201,7 +201,7 @@ class Telnet(object):
             self.telnet.close()
             self._is_login = False
             self._is_open = False
-            logging.debug(
+            logger.debug(
                 '%s - telnet соединение успешно закрыто' % self.ip
             )
 

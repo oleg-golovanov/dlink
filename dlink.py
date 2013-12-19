@@ -4,7 +4,6 @@
 import os
 import time
 import re
-import logging
 import socket
 
 import paramiko
@@ -13,6 +12,7 @@ import pyparsing as pp
 
 import service
 import snmp
+from logger import logger
 
 
 class Dlink(object):
@@ -72,19 +72,19 @@ class Dlink(object):
         try:
             snmp_result = self.snmp.get(oid_sysname)
         except snmp.SnmpException as snmp_exc:
-            logging.error(snmp_exc)
+            logger.error(snmp_exc)
             raise DlinkInitException(
                 self.ip, 'не удалось определить тип оборудования'
             )
         else:
-            logging.debug(
+            logger.debug(
                 '%s - запрос oid sysname выполнен успешно' % self.ip
             )
             eqp_type = str(snmp_result[0][1])
             match = re.search(r'[A-z]+-\d+[A-z]*', eqp_type)
             if match:
                 eqp_type = match.group()
-            logging.info(
+            logger.info(
                 '%s - тип оборудования определен - %s' % (self.ip, eqp_type)
             )
 
@@ -114,17 +114,17 @@ class Dlink(object):
         try:
             snmp_result = self.snmp.get(firmware_oid)
         except snmp.SnmpException as snmp_exc:
-            logging.error(snmp_exc)
+            logger.error(snmp_exc)
             raise DlinkInitException(
                 self.ip, '%s - не удалось определить версию прошивки оборудования'
             )
         else:
-            logging.debug(
+            logger.debug(
                 '%s - запрос oid firmware выполнен успешно' % self.ip
             )
             version = str(snmp_result[0][1])
             version = re.search(r'\d[\w.]+', version).group()
-            logging.debug(
+            logger.debug(
                 '%s - версия прошивки оборудования определена - %s'
                 % (self.ip, version)
             )
@@ -150,14 +150,14 @@ class Dlink(object):
         # запрашиваем оборудование по snmp на предмет имен
         # и типов интерфейсов
         try:
-            logging.info(
+            logger.info(
                 '%s - определение набора портов оборудования...' % self.ip
             )
             snmp_result = self.snmp.next(*oids_interface)
         except snmp.SnmpException as snmp_exc:
-            logging.error(snmp_exc)
+            logger.error(snmp_exc)
         else:
-            logging.debug(
+            logger.debug(
                 '%s - запрос oids_interface выполнен успешно' % self.ip
             )
             for (o1_1, index), (o1_3, _type), (o1_5, speed), \
@@ -188,7 +188,7 @@ class Dlink(object):
 
             self.ports.ports_tuple = service.ports_tuple_minimize(*result)
 
-            logging.info(
+            logger.info(
                 '%s - набор портов оборудования определен успешно' % self.ip
             )
 
@@ -215,7 +215,7 @@ class Dlink(object):
                 self.get_firmware_version()
 
         except DlinkInitException as dlink_exc:
-            logging.error(dlink_exc)
+            logger.error(dlink_exc)
             raise DlinkConfigException(
                 self.ip, 'дальнейшая работа с оборудованием невозможна'
             )
@@ -294,13 +294,13 @@ class Dlink(object):
         try:
             self.snmp.set(*current_eqp)
         except snmp.SnmpSetTimeoutException as snmp_exc:
-            logging.critical(snmp_exc)
+            logger.critical(snmp_exc)
             raise DlinkConfigException(
                 self.ip, 'не удалось настроить оборудование на отдачу '
                 'конфигурационного файла'
             )
 
-        logging.debug(
+        logger.debug(
             '%s - оборудование настроено на отдачу конфигурационного файла '
             'успешно' % self.ip
         )
@@ -326,7 +326,7 @@ class Dlink(object):
                     password=self.password
                 )
             except socket.error as exc:
-                logging.error(
+                logger.error(
                     '%s - %s' % (self.ip, exc)
                 )
                 raise DlinkConfigException(
@@ -388,7 +388,7 @@ class Dlink(object):
                         (file_path, self.tftp_server)
                     )
 
-        logging.info(
+        logger.info(
             '%s - конфигурационный файла получен успешно' % self.ip
         )
         self.chassis.config_file = result
@@ -477,7 +477,7 @@ class Dlink(object):
         stp = pp.Optional(ports_lit + ports) + pp.OneOrMore(option + value)
         stp.ignore(pp.Literal('mst') + pp.SkipTo(pp.lineEnd))
 
-        logging.info(
+        logger.info(
             '%s - парсинг конфигурационного файла...' % self.ip
         )
 
@@ -590,7 +590,7 @@ class Dlink(object):
         for port in self.ports:
             port.define_port_type(self.mgmt_vlan_name)
 
-        logging.info(
+        logger.info(
             '%s - парсинг закончен' % self.ip
         )
 

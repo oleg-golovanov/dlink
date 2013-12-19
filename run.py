@@ -37,10 +37,10 @@ from docopt import docopt
 
 import dlink
 import settings
-import service
 import ping
 import json_config
 import telnet
+from logger import logger, ColoredFormatter
 
 
 def ip_validate(arg):
@@ -66,11 +66,20 @@ def eqp_gen(arg):
         try:
             ping.ping(_ip)
         except ping.PingException as _exc:
-            logging.error(_exc)
+            logger.error(_exc)
         else:
             yield dlink.Dlink(_ip, **settings.__dict__)
 
 if __name__ == '__main__':
+    logger.setLevel(settings.log_level)
+    formatter = ColoredFormatter(
+        fmt='%(asctime)s   %(levelname)-8s   %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+    stdout_log = logging.StreamHandler(sys.stdout)
+    stdout_log.setFormatter(formatter)
+    logger.addHandler(stdout_log)
+
     args = docopt(__doc__)
 
     ip_addrs = args['<ip>']
@@ -80,20 +89,20 @@ if __name__ == '__main__':
             with open(args['--input-file'], 'r') as _f:
                 ip_addrs = [ip.strip() for ip in _f.readlines()]
         except IOError as exc:
-            logging.critical(exc)
+            logger.critical(exc)
             sys.exit(0)
 
     # проверка ip адресов
     not_valid_ip = False
     for ip in ip_addrs:
         if not ip_validate(ip):
-            logging.error(
+            logger.error(
                 'Not valid ip address - %s' % ip
             )
             not_valid_ip = True
 
     if not_valid_ip:
-        logging.critical(
+        logger.critical(
             'Some ip addresses not valid'
         )
         sys.exit(1)
@@ -110,13 +119,13 @@ if __name__ == '__main__':
                 dir_path = args['--output']
 
         if not os.access(dir_path, os.F_OK):
-            logging.critical(
+            logger.critical(
                 'No such directory: %r' % dir_path
             )
             sys.exit(1)
 
         if not os.access(dir_path, os.W_OK):
-            logging.critical(
+            logger.critical(
                 'Permission denied: %r' % dir_path
             )
             sys.exit(1)
@@ -125,7 +134,7 @@ if __name__ == '__main__':
             try:
                 config = equipment.get_config()
             except dlink.DlinkConfigException as exc:
-                logging.error(exc)
+                logger.error(exc)
             else:
                 if len(ip_addrs) == 1:
                     path = dir_path if not args['--output'] else os.path.join(dir_path, file_path)
@@ -144,12 +153,12 @@ if __name__ == '__main__':
                     func, arg = config.load_options, equipment.get_eqp_type()
                 cmd = equipment.analyze_config(func(arg))
                 if not cmd:
-                    logging.info('%s - tune not required' % equipment.ip)
+                    logger.info('%s - tune not required' % equipment.ip)
                     sys.exit(0)
             except (json_config.ConfigException,
                     dlink.DlinkInitException,
                     dlink.DlinkConfigException) as exc:
-                logging.critical(exc)
+                logger.critical(exc)
                 sys.exit(1)
 
             if args['--dry-run']:
@@ -163,13 +172,13 @@ if __name__ == '__main__':
                     )
                 except (telnet.TelnetConnException,
                         telnet.TelnetLoginException) as exc:
-                    logging.critical(exc)
+                    logger.critical(exc)
                     sys.exit(1)
 
                 try:
                     conn.exec_cmd(*cmd)
                     conn.save_config()
                 except telnet.TelnetConnException as exc:
-                    logging.critical(exc)
+                    logger.critical(exc)
                     sys.exit(1)
                 conn.close()
