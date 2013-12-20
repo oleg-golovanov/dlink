@@ -35,12 +35,9 @@ import os
 
 from docopt import docopt
 
-import dlink
 import settings
-import ping
-import json_config
-import telnet
-from logger import logger, ColoredFormatter
+from lib import dlink, json_config, ping, telnet
+from lib.logger import logger, ColoredFormatter
 
 
 def ip_validate(arg):
